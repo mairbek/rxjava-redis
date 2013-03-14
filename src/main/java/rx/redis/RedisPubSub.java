@@ -8,13 +8,21 @@ import rx.Subscription;
 import rx.util.functions.Func0;
 import rx.util.functions.Func1;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public final class RedisPubSub {
 
     public static Observable<String> observe(final Jedis jedis, final String channel) {
+        return observe(jedis, channel, Executors.newSingleThreadExecutor());
+    }
+
+    private static Observable<String> observe(final Jedis jedis, final String channel, final ExecutorService executor) {
         return Observable.defer(new Func0<Observable<String>>() {
             @Override
             public Observable<String> call() {
-                return Observable.create(new RedisObservable(jedis, channel));
+                return Observable.create(new RedisObservable(jedis, channel, executor));
             }
         });
     }
@@ -23,10 +31,12 @@ public final class RedisPubSub {
 
         private final Jedis jedis;
         private final String channel;
+        private final Executor executor;
 
-        public RedisObservable(Jedis jedis, String channel) {
+        public RedisObservable(Jedis jedis, String channel, Executor executor) {
             this.jedis = jedis;
             this.channel = channel;
+            this.executor = executor;
         }
 
         @Override
@@ -60,7 +70,13 @@ public final class RedisPubSub {
 
                 }
             };
-            jedis.subscribe(pubSub, channel);
+
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    jedis.subscribe(pubSub, channel);
+                }
+            });
 
             return new Subscription() {
                 @Override
