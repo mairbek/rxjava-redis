@@ -18,7 +18,7 @@ public final class RedisPubSub {
         return observe(jedis, channel, Executors.newSingleThreadExecutor());
     }
 
-    private static Observable<String> observe(final Jedis jedis, final String channel, final ExecutorService executor) {
+    public static Observable<String> observe(final Jedis jedis, final String channel, final ExecutorService executor) {
         return Observable.defer(new Func0<Observable<String>>() {
             @Override
             public Observable<String> call() {
