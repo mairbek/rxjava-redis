@@ -7,7 +7,7 @@ import java.util.Arrays;
 public class Publisher {
 
     public static void main(String[] args) throws Exception {
-        Jedis j = new Jedis("localhost");
+        Jedis j = new Jedis("localhost", 6380);
         j.connect();
 
         System.out.println("Publishing messages");
