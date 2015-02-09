@@ -42,7 +42,9 @@ public final class RedisPubSub {
         public RedisObservable(final Jedis jedis, final String channel, final Executor executor) {
 
             this.jedis = jedis;
+
             this.channel = channel;
+
             this.executor = executor;
         }
 
@@ -86,6 +88,7 @@ public final class RedisPubSub {
                 public void run() {
 
                     jedis.subscribe(pubSub, channel);
+
                 }
             });
 
@@ -95,6 +98,8 @@ public final class RedisPubSub {
                 public void call() {
 
                     pubSub.unsubscribe(channel);
+                    jedis.close();
+
                 }
             }));
 
