@@ -1,5 +1,7 @@
 package rx.redis;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 import rx.Observable;
@@ -13,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class RedisPubSub {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisPubSub.class);
 
     public static Observable<String> observe(final Jedis jedis, final String channel) {
 
@@ -65,10 +69,16 @@ public final class RedisPubSub {
 
                 public void onSubscribe(String channel, int subscribedChannels) {
 
+                    //TODO
+                    //                    subscriber.onStart();
+
                 }
 
                 @Override
                 public void onUnsubscribe(String channel, int subscribedChannels) {
+
+                    //TODO
+                    //                    subscriber.onCompleted();
 
                 }
 
@@ -98,7 +108,6 @@ public final class RedisPubSub {
                 public void call() {
 
                     pubSub.unsubscribe(channel);
-                    jedis.close();
 
                 }
             }));
