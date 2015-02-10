@@ -6,7 +6,6 @@ import org.testng.annotations.Test;
 import redis.clients.jedis.Jedis;
 import rx.Observable;
 import rx.Subscription;
-import rx.functions.Action1;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -41,7 +40,7 @@ public class RedisPubSubTestCase {
                     try {
                         Thread.sleep(100L);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        LOGGER.warn("", e);
                     }
 
                 }
@@ -56,14 +55,7 @@ public class RedisPubSubTestCase {
         final Observable<String> redisObservable = RedisPubSub.observe(subscriberJedis,
                 "a-channel");
 
-        final Subscription subscribe = redisObservable.subscribe(new Action1<String>() {
-            @Override
-            public void call(final String s) {
-
-                LOGGER.info("received: " + s);
-
-            }
-        });
+        final Subscription subscribe = redisObservable.subscribe();
 
         Thread.sleep(1000L);
 

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action0;
@@ -64,83 +65,39 @@ public class RedisPoolPubSub {
             final JedisPubSub jedisPubSub = new OnMessageOnNext(subscriber);
 
             //the resource is returned to the pool by UnsubscribeAction
-            Jedis jedis = null;
+            final Jedis jedis;
             try {
                 jedis = jedisPool.getResource();
 
-                final JedisSubscribe jedisSubscribe = new JedisSubscribe(jedis, jedisPubSub,
-                        channel);
-                executor.execute(jedisSubscribe);
+                //subscribe
+                executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
 
-                JedisUnsubscribe jedisUnsubscribe = new JedisUnsubscribe(jedis, jedisPubSub);
-                final ExecuteCommand executeCommandAction = new ExecuteCommand(executor,
-                        jedisUnsubscribe);
+                        jedis.subscribe(jedisPubSub, channel);
+                    }
+                });
+
+                //unsubscribe jedisPubSub and close hedis when observer is unsubscribed
                 // from http://stackoverflow.com/questions/26695125/how-to-get-notified-of-a-observers-unsubscribe-action-in-a-custom-observable-in
-                subscriber.add(Subscriptions.create(executeCommandAction));
+                subscriber.add(Subscriptions.create(new Action0() {
+                    @Override
+                    public void call() {
 
-            } catch (Exception e) {
+                        executor.execute(new Runnable() {
+                            @Override
+                            public void run() {
+
+                                jedisPubSub.unsubscribe();
+                                jedis.close();
+
+                            }
+                        });
+                    }
+                }));
+
+            } catch (final JedisConnectionException e) {
                 subscriber.onError(e);
-            }
-        }
-
-        private static class JedisSubscribe implements Runnable {
-
-            private final Jedis jedis;
-
-            private final JedisPubSub jedisPubSub;
-
-            private final String channel;
-
-            public JedisSubscribe(final Jedis jedis, final JedisPubSub jedisPubSub,
-                    final String channel) {
-
-                this.jedis = jedis;
-                this.jedisPubSub = jedisPubSub;
-                this.channel = channel;
-            }
-
-            @Override
-            public void run() {
-
-                this.jedis.subscribe(this.jedisPubSub, this.channel);
-            }
-        }
-
-        private static class JedisUnsubscribe implements Runnable {
-
-            private final Jedis jedis;
-            private final JedisPubSub jedisPubSub;
-
-            public JedisUnsubscribe(final Jedis jedis, final JedisPubSub jedisPubSub) {
-
-                this.jedis = jedis;
-                this.jedisPubSub = jedisPubSub;
-            }
-
-            @Override
-            public void run() {
-
-                this.jedisPubSub.unsubscribe();
-                this.jedis.close();
-            }
-        }
-
-        private static class ExecuteCommand implements Action0 {
-
-            private final Executor executor;
-            private Runnable command;
-
-            public ExecuteCommand(final Executor executor, final Runnable command) {
-
-                this.executor = executor;
-                this.command = command;
-            }
-
-            @Override
-            public void call() {
-
-                this.executor.execute(command);
-
             }
         }
 

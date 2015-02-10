@@ -8,6 +8,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import rx.Observable;
 import rx.Subscription;
+import rx.functions.Action0;
 import rx.functions.Action1;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,9 +46,9 @@ public class RedisPoolPubSubTestCase {
                     publisherJedis.publish("a-channel", "msg at:'" + System.nanoTime() + "'");
 
                     try {
-                        Thread.sleep(100L);
+                        Thread.sleep(1L);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        LOGGER.warn("", e);
                     }
 
                 }
@@ -67,14 +68,19 @@ public class RedisPoolPubSubTestCase {
         final Observable<String> redisObservable = RedisPoolPubSub.observe(subscriberJedisPool,
                 "a-channel");
 
+        final AtomicBoolean atLeastAMessageWasConsumed = new AtomicBoolean(false);
+
         final Subscription subscribe = redisObservable.subscribe(new Action1<String>() {
             @Override
             public void call(final String s) {
 
+                if (!atLeastAMessageWasConsumed.get()) {
+                    atLeastAMessageWasConsumed.set(true);
+                }
             }
         });
 
-        Thread.sleep(1000L);
+        Thread.sleep(10L);
 
         final AtomicBoolean secondObservableCalledOnError = new AtomicBoolean(false);
 
@@ -86,27 +92,31 @@ public class RedisPoolPubSubTestCase {
                     @Override
                     public void call(final String s) {
                         //should never happen
-                        fail();
+                        fail("should never happen");
                     }
                 }, new Action1<Throwable>() {
-            @Override
-            public void call(final Throwable throwable) {
+                    @Override
+                    public void call(final Throwable throwable) {
 
-                //should be called:
-                secondObservableCalledOnError.set(true);
+                        //should be called:
+                        secondObservableCalledOnError.set(true);
 
-            }
-        });
+                    }
+                }, new Action0() {
+                    @Override
+                    public void call() {
+                        //should never happen
+                        fail("should never happen");
+                    }
+                });
 
         shouldRun.set(false);
 
-        LOGGER.info("unsubscribing");
-
         subscribe.unsubscribe();
 
-        LOGGER.info("end");
-
         assertTrue(secondObservableCalledOnError.get());
+
+        assertTrue(atLeastAMessageWasConsumed.get());
 
         assertEquals(subscriberJedisPool.getNumActive(), 1);
     }
