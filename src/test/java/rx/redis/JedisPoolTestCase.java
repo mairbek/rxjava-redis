@@ -19,7 +19,18 @@ public class JedisPoolTestCase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JedisPoolTestCase.class);
 
-    @Test (enabled = false)
+
+    /* TODO test this script:
+    *
+    * acquire jedis from pool
+    * on exception, throw
+    * register a pubsub on a channel using thread x
+    * on websocketclose, unsubscribe pubsub
+    * the method subscribe terminates, and we can release the jedis.
+    *
+    * */
+
+    @Test (enabled = true)
     public void testName() throws Exception {
 
         final GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
@@ -47,6 +58,14 @@ public class JedisPoolTestCase {
                 LOGGER.info("subscribing");
                 jedis.subscribe(jedisPubSub, "a-channel");
                 LOGGER.info("subscribe finished, always after unsubscribing");
+
+
+                //from here
+                LOGGER.info("closing, releasing jedis");
+                jedis.close();
+                LOGGER.info("released jedis");
+                //to here
+
             }
         }).start();
 
@@ -61,11 +80,7 @@ public class JedisPoolTestCase {
                 LOGGER.info("unsubscribing");
                 jedisPubSub.unsubscribe();
                 LOGGER.info("unsubscribed");
-                //from here
-                LOGGER.info("closing and releasing jedis");
-                jedis.close();
-                LOGGER.info("released jedis");
-                //to here
+
 
             }
         }).start();

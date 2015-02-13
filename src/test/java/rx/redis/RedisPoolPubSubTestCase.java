@@ -14,6 +14,7 @@ import rx.functions.Action1;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -50,9 +51,7 @@ public class RedisPoolPubSubTestCase {
                     } catch (InterruptedException e) {
                         LOGGER.warn("", e);
                     }
-
                 }
-
             }
         });
 
@@ -70,7 +69,7 @@ public class RedisPoolPubSubTestCase {
 
         final AtomicBoolean atLeastAMessageWasConsumed = new AtomicBoolean(false);
 
-        final Subscription subscribe = redisObservable.subscribe(new Action1<String>() {
+        final Subscription firstSubscription = redisObservable.subscribe(new Action1<String>() {
             @Override
             public void call(final String s) {
 
@@ -87,7 +86,7 @@ public class RedisPoolPubSubTestCase {
         final Observable<String> secondRedisObservable = RedisPoolPubSub.observe(
                 subscriberJedisPool, "a-channel");
 
-        final Subscription failingSubscribe = secondRedisObservable.subscribe(
+        final Subscription failingSubscription = secondRedisObservable.subscribe(
                 new Action1<String>() {
                     @Override
                     public void call(final String s) {
@@ -112,7 +111,16 @@ public class RedisPoolPubSubTestCase {
 
         shouldRun.set(false);
 
-        subscribe.unsubscribe();
+        firstSubscription.unsubscribe();
+        //need to sleep a bit to work. TODO inspect better
+        Thread.sleep(1L);
+
+        try {
+            final Jedis jedis = subscriberJedisPool.getResource();
+            assertNotNull(jedis);
+        } catch (final Exception e) {
+            fail(e.getMessage());
+        }
 
         assertTrue(secondObservableCalledOnError.get());
 

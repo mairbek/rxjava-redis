@@ -75,6 +75,12 @@ public class RedisPoolPubSub {
                     public void run() {
 
                         jedis.subscribe(jedisPubSub, channel);
+
+                        //blocked until it's called jedisPubSub.unsubscribe()
+                        //it closes jedis in the end
+
+                        jedis.close();
+
                     }
                 });
 
@@ -84,15 +90,8 @@ public class RedisPoolPubSub {
                     @Override
                     public void call() {
 
-                        executor.execute(new Runnable() {
-                            @Override
-                            public void run() {
+                        jedisPubSub.unsubscribe();
 
-                                jedisPubSub.unsubscribe();
-                                jedis.close();
-
-                            }
-                        });
                     }
                 }));
 
